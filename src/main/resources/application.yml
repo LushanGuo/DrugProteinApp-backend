@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: drug-screen-backend
+  
+  # 数据库连接配置
+  datasource:
+    url: jdbc:postgresql://localhost:5432/drug_screen_db
+    username: postgres
+    password: zeng163452
+    driver-class-name: org.postgresql.Driver
+  
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  
+  # 数据库初始化配置
+  sql:
+    init:
+      enabled: true
+      mode: never
+      schema-locations: classpath:sql/init.sql
+
+# Vina路径配置
+vina:
+  path: D:\TianLiBei\AutoDock_Vina\vina.exe  # 替换为实际的Vina可执行文件路径
+
+# ADMET API配置
+admet:
+  api:
+    url: https://admetlab3.scbdd.com/api/single/admet  # 使用提供的基础接口地址
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
