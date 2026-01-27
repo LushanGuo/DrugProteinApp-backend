@@ -32,7 +32,7 @@ vina:
 # ADMET API配置
 admet:
   api:
-    url: https://admetlab3.scbdd.com/api/single/admet  # 使用提供的基础接口地址
+    url: https://admetmesh.scbdd.com/service/evaluation/index  # 使用用户要求的真实API URL
 
 # Actuator配置
 management:

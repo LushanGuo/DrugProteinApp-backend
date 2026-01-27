@@ -12,6 +12,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -146,9 +147,8 @@ public class DockingService {
 
         Process process = pb.start();
         StringBuilder logContent = new StringBuilder();
-        StringBuilder errorContent = new StringBuilder();
 
-        // 读取标准输出
+        // 读取合并后的输出流（标准输出和标准错误）
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -157,20 +157,10 @@ public class DockingService {
             }
         }
 
-        // 读取标准错误
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                errorContent.append(line).append("\n");
-                log.error("Vina错误: {}", line);
-            }
-        }
-
         int exitCode = process.waitFor();
         if (exitCode != 0) {
             String errorMessage = "Vina执行失败，退出码: " + exitCode + "\n" + 
-                                "标准输出: " + logContent + "\n" + 
-                                "标准错误: " + errorContent;
+                                "输出日志: " + logContent;
             log.error(errorMessage);
             throw new Exception(errorMessage);
         }
@@ -204,7 +194,7 @@ public class DockingService {
             // 如果已经找到表格，检查数据行
             if (foundTable && line.trim().length() > 0) {
                 // 跳过分隔线和标题行
-                if (line.contains("-----+") || line.contains("(kcal/mol)")) {
+                if (line.contains("-----+") || line.contains("(kcal/mol)") || line.contains("mode |")) {
                     continue;
                 }
                 
@@ -215,8 +205,11 @@ public class DockingService {
                         // 第二列是亲和力值
                         try {
                             double affinity = Double.parseDouble(parts[1]);
-                            log.info("提取到亲和力值 (表格格式): {}", affinity);
-                            return affinity;
+                            // 亲和力值应该是负数（kcal/mol），且绝对值通常小于15
+                            if (affinity < 0 && Math.abs(affinity) < 15) {
+                                log.info("提取到亲和力值 (表格格式): {}", affinity);
+                                return affinity;
+                            }
                         } catch (NumberFormatException e) {
                             // 跳过非数字部分
                         }
@@ -224,20 +217,6 @@ public class DockingService {
                 } catch (Exception e) {
                     log.warn("解析亲和力值失败: {}", e.getMessage());
                 }
-            }
-            
-            // 额外检查：可能的亲和力值格式
-            try {
-                String[] parts = line.split("\\s+");
-                for (String part : parts) {
-                    if (part.matches("^-?\\d+(\\.\\d+)?$") && Math.abs(Double.parseDouble(part)) < 100) {
-                        double affinity = Double.parseDouble(part);
-                        log.info("提取到亲和力值 (直接数字): {}", affinity);
-                        return affinity;
-                    }
-                }
-            } catch (Exception e) {
-                // 跳过解析错误
             }
         }
         
@@ -250,5 +229,13 @@ public class DockingService {
      */
     public DockingResult getDockingResult(Long id) {
         return dockingResultRepository.findById(id).orElse(null);
+    }
+
+    /**
+     * 根据化合物ID查询最新的对接结果
+     */
+    public DockingResult getLatestDockingResult(String compoundId) {
+        List<DockingResult> results = dockingResultRepository.findByCompoundIdOrderByCreateTimeDesc(compoundId);
+        return results.isEmpty() ? null : results.get(0);
     }
 }

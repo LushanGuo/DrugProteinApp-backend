@@ -20,7 +20,7 @@ public class AdmetController {
      * @return 任务执行结果
      */
     @RequestMapping(value = "/predict", method = {RequestMethod.GET, RequestMethod.POST})
-    public ResponseEntity<?> submitAdmetPrediction(@RequestParam Long compoundId) {
+    public ResponseEntity<?> submitAdmetPrediction(@RequestParam String compoundId) {
         try {
             AdmetResult result = admetService.executeAdmetPrediction(compoundId);
             return ResponseEntity.ok(result);
@@ -36,7 +36,7 @@ public class AdmetController {
      * @return ADMET预测结果
      */
     @GetMapping("/result/compound/{compoundId}")
-    public ResponseEntity<?> getAdmetResultByCompoundId(@PathVariable Long compoundId) {
+    public ResponseEntity<?> getAdmetResultByCompoundId(@PathVariable String compoundId) {
         try {
             AdmetResult result = admetService.getAdmetResultByCompoundId(compoundId);
             if (result == null) {

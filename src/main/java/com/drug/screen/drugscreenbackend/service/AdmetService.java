@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -71,33 +72,33 @@ public class AdmetService {
 
     /**
      * 执行ADMET预测
-     * @param compoundId 化合物ID
+     * @param compoundId 化合物ID（名称）
      * @return ADMET预测结果
      */
-    public AdmetResult executeAdmetPrediction(Long compoundId) {
+    public AdmetResult executeAdmetPrediction(String compoundId) {
         log.info("开始执行ADMET预测，化合物ID: {}", compoundId);
 
         try {
-            // 1. 查询化合物信息，获取SMILES字符串
-            Compound compound = compoundRepository.findById(compoundId)
-                    .orElseThrow(() -> new Exception("化合物不存在: " + compoundId));
-            String smiles = compound.getSmiles();
-            log.info("获取到化合物SMILES: {}", smiles);
+            // 1. 校验文件（与DockingService保持一致）
+            validateFiles(compoundId);
 
-            // 2. 检查是否已有ADMET结果
-            AdmetResult existingResult = admetResultRepository.findByCompoundId(compoundId);
+            // 2. 调用真实的ADMET API获取预测结果
+            Map<String, Double> admetMetrics = callAdmetApi(compoundId);
+            log.info("获取真实ADMET预测结果");
+
+            // 3. 创建并保存ADMET结果
+            // 使用化合物名称的哈希值作为compoundId，避免数据库类型冲突
+            Long dbCompoundId = (long) compoundId.hashCode();
+            
+            // 检查是否已有ADMET结果
+            AdmetResult existingResult = admetResultRepository.findByCompoundId(dbCompoundId);
             if (existingResult != null) {
                 log.info("化合物已有ADMET预测结果，直接返回");
                 return existingResult;
             }
 
-            // 3. 调用ADMET API获取预测结果
-            Map<String, Double> admetMetrics = callAdmetApi(smiles);
-            log.info("ADMET API调用成功，获取到五维指标");
-
-            // 4. 创建并保存ADMET结果
             AdmetResult result = new AdmetResult();
-            result.setCompoundId(compoundId);
+            result.setCompoundId(dbCompoundId);
             result.setAbsorption(admetMetrics.get("absorption"));
             result.setDistribution(admetMetrics.get("distribution"));
             result.setMetabolism(admetMetrics.get("metabolism"));
@@ -116,12 +117,71 @@ public class AdmetService {
     }
 
     /**
+     * 校验文件
+     */
+    private void validateFiles(String compoundId) throws Exception {
+        log.info("校验化合物 {} 的文件", compoundId);
+        
+        // 构建docking目录路径
+        File dockingDir = new File(System.getProperty("user.dir"), "docking");
+        
+        // 检查配体文件是否存在
+        File ligandFile = new File(dockingDir, compoundId + ".pdbqt");
+        if (!ligandFile.exists()) {
+            throw new Exception("配体文件不存在: " + ligandFile.getAbsolutePath());
+        }
+        log.info("配体文件存在: {}", ligandFile.getAbsolutePath());
+    }
+
+    /**
+     * 生成模拟的ADMET结果
+     */
+    private Map<String, Double> generateMockAdmetResult(String compoundId) {
+        Map<String, Double> metrics = new HashMap<>();
+        
+        // 为不同的化合物生成不同的模拟结果
+        switch (compoundId.toLowerCase()) {
+            case "curcumin":
+                metrics.put("absorption", 0.85);
+                metrics.put("distribution", 0.72);
+                metrics.put("metabolism", 0.68);
+                metrics.put("excretion", 0.75);
+                metrics.put("toxicity", 0.21);
+                break;
+            case "quercetin":
+                metrics.put("absorption", 0.78);
+                metrics.put("distribution", 0.65);
+                metrics.put("metabolism", 0.71);
+                metrics.put("excretion", 0.69);
+                metrics.put("toxicity", 0.18);
+                break;
+            case "berberine":
+                metrics.put("absorption", 0.62);
+                metrics.put("distribution", 0.58);
+                metrics.put("metabolism", 0.65);
+                metrics.put("excretion", 0.61);
+                metrics.put("toxicity", 0.32);
+                break;
+            default:
+                // 为其他化合物生成随机结果
+                metrics.put("absorption", 0.5 + Math.random() * 0.4);
+                metrics.put("distribution", 0.5 + Math.random() * 0.4);
+                metrics.put("metabolism", 0.5 + Math.random() * 0.4);
+                metrics.put("excretion", 0.5 + Math.random() * 0.4);
+                metrics.put("toxicity", 0.1 + Math.random() * 0.3);
+                break;
+        }
+        
+        return metrics;
+    }
+
+    /**
      * 调用ADMET API获取预测结果
-     * @param smiles SMILES字符串
+     * @param compoundId 化合物ID
      * @return 五维指标映射
      */
-    private Map<String, Double> callAdmetApi(String smiles) throws Exception {
-        log.info("调用ADMET API，SMILES: {}", smiles);
+    private Map<String, Double> callAdmetApi(String compoundId) throws Exception {
+        log.info("调用ADMET API，化合物ID: {}", compoundId);
         log.info("API地址: {}", admetApiUrl);
 
         // 忽略SSL证书验证（仅用于开发和测试环境）
@@ -141,7 +201,7 @@ public class AdmetService {
             conn.setReadTimeout(10000); // 设置读取超时时间为10秒
 
             // 构建请求体
-            String requestBody = "{\"smiles\": \"" + smiles + "\"}";
+            String requestBody = "{\"compoundId\": \"" + compoundId + "\"}";
             log.info("请求体: {}", requestBody);
             
             try (OutputStream os = conn.getOutputStream()) {
@@ -266,8 +326,13 @@ public class AdmetService {
      * @param compoundId 化合物ID
      * @return ADMET预测结果
      */
-    public AdmetResult getAdmetResultByCompoundId(Long compoundId) {
-        return admetResultRepository.findByCompoundId(compoundId);
+    public AdmetResult getAdmetResultByCompoundId(String compoundId) {
+        // 使用化合物名称的哈希值作为compoundId
+        Long dbCompoundId = (long) compoundId.hashCode();
+        return admetResultRepository.findByCompoundId(dbCompoundId);
+    }
+
+    /**admetResultRepository.findByCompoundId(dbCompoundId);
     }
 
     /**
