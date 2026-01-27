@@ -3,7 +3,14 @@
 *.jar
 *.war
 *.ear
-*.log
+
+# Gradle
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
 
 # Maven
 target/
@@ -17,20 +24,37 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
-# IntelliJ IDEA
-.idea/
-*.iml
+### STS ###
+.apt_generated
+.factorypath
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
 *.iws
+*.iml
 *.ipr
 out/
+!**/src/main/**/out/
+!**/src/test/**/out/
 
-# Eclipse
+### Eclipse ###
 .classpath
 .project
 .settings/
 bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
 
-# VS Code
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
 .vscode/
 
 # macOS
