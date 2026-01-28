@@ -1,0 +1,213 @@
+{
+  "info": {
+    "name": "药物筛选平台 API",
+    "description": "药物筛选平台后端 API 接口测试集合",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "化合物管理",
+      "item": [
+        {
+          "name": "1. 获取化合物列表（默认分页）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compounds",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compounds"]
+            },
+            "description": "获取所有化合物列表，使用默认分页参数（page=0, size=10）"
+          },
+          "response": []
+        },
+        {
+          "name": "2. 分页查询化合物（每页5条）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compounds?page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compounds"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0",
+                  "description": "页码（从0开始）"
+                },
+                {
+                  "key": "size",
+                  "value": "5",
+                  "description": "每页显示数量"
+                }
+              ]
+            },
+            "description": "分页查询化合物，每页显示5条数据"
+          },
+          "response": []
+        },
+        {
+          "name": "3. 分页查询化合物（第2页）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compounds?page=1&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compounds"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "页码（第2页）"
+                },
+                {
+                  "key": "size",
+                  "value": "10",
+                  "description": "每页显示数量"
+                }
+              ]
+            },
+            "description": "获取第2页的化合物数据"
+          },
+          "response": []
+        },
+        {
+          "name": "4. 搜索化合物（槲皮素）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compounds?keyword=槲皮素&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compounds"],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "槲皮素",
+                  "description": "搜索关键词"
+                },
+                {
+                  "key": "page",
+                  "value": "0",
+                  "description": "页码"
+                },
+                {
+                  "key": "size",
+                  "value": "10",
+                  "description": "每页数量"
+                }
+              ]
+            },
+            "description": "根据关键词搜索化合物（支持中文名和英文名模糊搜索）"
+          },
+          "response": []
+        },
+        {
+          "name": "5. 搜索化合物（黄酮类）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compounds?keyword=黄酮&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compounds"],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "黄酮",
+                  "description": "搜索关键词"
+                },
+                {
+                  "key": "page",
+                  "value": "0",
+                  "description": "页码"
+                },
+                {
+                  "key": "size",
+                  "value": "10",
+                  "description": "每页数量"
+                }
+              ]
+            },
+            "description": "搜索黄酮类化合物"
+          },
+          "response": []
+        },
+        {
+          "name": "6. 搜索化合物（英文名 Quercetin）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compounds?keyword=Quercetin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compounds"],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "Quercetin",
+                  "description": "英文名搜索"
+                }
+              ]
+            },
+            "description": "使用英文名搜索化合物"
+          },
+          "response": []
+        },
+        {
+          "name": "7. 获取化合物详情（ID=1）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compounds/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compounds", "1"]
+            },
+            "description": "根据 ID 获取单个化合物的详细信息"
+          },
+          "response": []
+        },
+        {
+          "name": "8. 获取化合物详情（ID=10）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compounds/10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compounds", "10"]
+            },
+            "description": "获取 ID 为 10 的化合物详情"
+          },
+          "response": []
+        },
+        {
+          "name": "9. 测试不存在的ID（404错误）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compounds/999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compounds", "999"]
+            },
+            "description": "测试查询不存在的化合物 ID，应该返回 404 Not Found"
+          },
+          "response": []
+        }
+      ],
+      "description": "化合物相关的 API 接口"
+    }
+  ]
+}
