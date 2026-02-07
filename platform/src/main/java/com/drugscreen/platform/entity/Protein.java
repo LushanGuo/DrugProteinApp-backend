@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import java.time.LocalDateTime;
 
 /**
  * 蛋白质实体类
@@ -20,14 +21,25 @@ public class Protein {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true, length = 50)
     private String name; // 蛋白名称，如 "1e9h"
     
-    @Column(name = "pdb_content", columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
+    private String description; // 蛋白描述
+    
+    @Column(name = "pdb_content", columnDefinition = "TEXT", nullable = false)
     private String pdbContent; // PDB 文件内容
+    
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
     
     public Protein(String name, String pdbContent) {
         this.name = name;
         this.pdbContent = pdbContent;
+    }
+    
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
     }
 }

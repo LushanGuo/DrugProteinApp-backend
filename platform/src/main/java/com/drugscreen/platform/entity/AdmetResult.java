@@ -29,6 +29,12 @@ public class AdmetResult {
     @Column(name = "liver_toxicity")
     private Integer liverToxicity; // 肝毒性 (0=无, 1=有)
     
+    @Column(name = "absorption")
+    private Double absorption; // 吸收性 (0-1，值越高越好)
+    
+    @Column(name = "metabolism")
+    private Double metabolism; // 代谢稳定性 (0-1，值越高越好)
+    
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     

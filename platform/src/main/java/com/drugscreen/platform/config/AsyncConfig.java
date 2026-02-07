@@ -1,4 +1,4 @@
-package com.drug.screen.drugscreenbackend.config;
+package com.drugscreen.platform.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -7,6 +7,10 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 
+/**
+ * 异步任务配置
+ * 用于 Docking 和 ADMET 预测等耗时任务
+ */
 @Configuration
 @EnableAsync
 public class AsyncConfig {

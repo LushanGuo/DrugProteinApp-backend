@@ -70,8 +70,8 @@ public class CompoundService {
             String ligandPdb = readLigandPdbFile(compound.getEnglishName());
             dto.setLigandPdbqt(ligandPdb); // 使用 PDB 格式作为 PDBQT
             
-            // 读取受体 PDB（CDK2 蛋白）
-            String receptorPdb = readStructureFile("structures/receptor_cdk2.pdb");
+            // 读取受体 PDB（1e9h 蛋白质）
+            String receptorPdb = readStructureFile("structures/receptor_1e9h.pdb");
             dto.setReceptorPdb(receptorPdb);
             
             log.info("成功从文件读取化合物 {} 的结构数据", compound.getName());

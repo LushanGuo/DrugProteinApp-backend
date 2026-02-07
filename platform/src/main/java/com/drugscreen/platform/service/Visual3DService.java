@@ -55,10 +55,10 @@ public class Visual3DService {
     }
     
     /**
-     * 读取受体蛋白 PDB 文件
+     * 读取受体蛋白 PDB 文件（1e9h 蛋白质）
      */
     private String readReceptorPdb() throws IOException {
-        ClassPathResource resource = new ClassPathResource("structures/receptor_cdk2.pdb");
+        ClassPathResource resource = new ClassPathResource("structures/receptor_1e9h.pdb");
         return new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     }
     

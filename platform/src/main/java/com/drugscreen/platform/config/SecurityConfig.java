@@ -48,6 +48,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/visual/**").permitAll()
                         // 公开访问的API - 分析评分
                         .requestMatchers("/api/analysis/**").permitAll()
+                        // 公开访问的API - 分子对接
+                        .requestMatchers("/api/docking/**").permitAll()
+                        // 公开访问的API - ADMET预测
+                        .requestMatchers("/api/admet/**").permitAll()
                         // 公开访问的API - 错误处理和文档
                         .requestMatchers("/error", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         // 其他所有请求需要认证

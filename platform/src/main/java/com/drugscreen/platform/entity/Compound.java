@@ -37,12 +37,6 @@ public class Compound {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "receptor_pdb", columnDefinition = "TEXT")
-    private String receptorPdb; // 受体蛋白 PDB 数据
-
-    @Column(name = "ligand_pdbqt", columnDefinition = "TEXT")
-    private String ligandPdbqt; // 配体 PDBQT 数据
-
     @Column(name = "raw_pdbqt_content", columnDefinition = "TEXT")
     private String rawPdbqtContent; // 原始 PDBQT 内容（对接前）
 

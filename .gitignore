@@ -81,3 +81,15 @@ logs/
 # Database
 *.db
 *.sqlite
+
+# Test and temporary scripts
+token.json
+test-*.bat
+check-*.bat
+
+# Docking output files (keep input files only)
+docking/*_out.pdbqt
+
+# Documentation drafts (keep final versions)
+*-草稿.md
+*-临时.md

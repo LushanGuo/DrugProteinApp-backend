@@ -1,9 +1,11 @@
-package com.drug.screen.drugscreenbackend.service;
+package com.drugscreen.platform.service;
 
-import com.drug.screen.drugscreenbackend.entity.DockingResult;
-import com.drug.screen.drugscreenbackend.repository.DockingResultRepository;
+import com.drugscreen.platform.entity.Compound;
+import com.drugscreen.platform.entity.DockingResult;
+import com.drugscreen.platform.repository.CompoundRepository;
+import com.drugscreen.platform.repository.DockingResultRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -12,18 +14,17 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
+import java.util.Optional;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DockingService {
 
-    @Autowired
-    private DockingResultRepository dockingResultRepository;
+    private final DockingResultRepository dockingResultRepository;
+    private final CompoundRepository compoundRepository;
 
-    @Value("${vina.path}")
+    @Value("${vina.path:D:\\tool\\vina\\vina.exe}")
     private String vinaPath;
 
     /**
@@ -31,33 +32,36 @@ public class DockingService {
      * @param compoundId 化合物ID
      */
     @Async("asyncExecutor")
-    public void executeDocking(String compoundId) {
+    public void executeDocking(Long compoundId) {
         log.info("开始执行分子对接，化合物ID: {}", compoundId);
+
+        // 获取化合物信息
+        Compound compound = compoundRepository.findById(compoundId)
+                .orElseThrow(() -> new RuntimeException("化合物不存在: " + compoundId));
 
         // 创建对接结果记录
         DockingResult result = new DockingResult();
         result.setCompoundId(compoundId);
         result.setStatus("PENDING");
-        result.setCreateTime(LocalDateTime.now());
         result = dockingResultRepository.save(result);
 
         try {
-            // 校验文件（实际项目中需要实现）
-            validateFiles(compoundId);
+            // 校验文件
+            validateFiles(compound.getEnglishName());
 
             // 调用Vina执行对接
-            String log = runVina(compoundId);
-            result.setDockingLog(log);
+            String logContent = runVina(compound.getEnglishName());
+            result.setDockedPdbqtContent(logContent);
 
             // 提取对接结果
-            Double affinity = extractAffinity(log);
+            Double affinity = extractAffinity(logContent);
             result.setAffinity(affinity);
-            result.setStatus("SUCCESS");
+            result.setStatus("completed");
 
         } catch (Exception e) {
-            log.error("分子对接失败: {}", e.getMessage());
-            result.setStatus("FAILED");
-            result.setDockingLog(e.getMessage());
+            log.error("分子对接失败: {}", e.getMessage(), e);
+            result.setStatus("failed");
+            result.setDockedPdbqtContent("Error: " + e.getMessage());
         } finally {
             // 保存结果到数据库
             dockingResultRepository.save(result);
@@ -69,11 +73,21 @@ public class DockingService {
     /**
      * 校验文件
      */
-    private void validateFiles(String compoundId) throws Exception {
-        log.info("校验化合物 {} 的文件", compoundId);
+    private void validateFiles(String englishName) throws Exception {
+        log.info("校验化合物 {} 的文件", englishName);
         
-        // 构建docking目录路径
-        File dockingDir = new File(System.getProperty("user.dir"), "docking");
+        // 获取项目根目录（platform 的父目录）
+        File currentDir = new File(System.getProperty("user.dir"));
+        File dockingDir;
+        
+        // 如果当前目录是 platform，则使用父目录的 docking
+        if (currentDir.getName().equals("platform")) {
+            dockingDir = new File(currentDir.getParentFile(), "docking");
+        } else {
+            dockingDir = new File(currentDir, "docking");
+        }
+        
+        log.info("Docking 目录路径: {}", dockingDir.getAbsolutePath());
         
         // 检查1e9h.pdbqt文件是否存在
         File receptorFile = new File(dockingDir, "1e9h.pdbqt");
@@ -83,7 +97,7 @@ public class DockingService {
         log.info("受体文件存在: {}", receptorFile.getAbsolutePath());
         
         // 检查配体文件是否存在
-        File ligandFile = new File(dockingDir, compoundId + ".pdbqt");
+        File ligandFile = new File(dockingDir, englishName + ".pdbqt");
         if (!ligandFile.exists()) {
             throw new Exception("配体文件不存在: " + ligandFile.getAbsolutePath());
         }
@@ -93,7 +107,7 @@ public class DockingService {
     /**
      * 运行Vina执行对接
      */
-    private String runVina(String compoundId) throws Exception {
+    private String runVina(String englishName) throws Exception {
         log.info("调用Vina执行对接，路径: {}", vinaPath);
 
         // 检查Vina路径是否存在
@@ -103,9 +117,17 @@ public class DockingService {
         }
         log.info("Vina可执行文件存在: {}", vinaFile.getAbsolutePath());
 
-        // 创建docking目录（如果不存在）
-        // 使用绝对路径，避免Windows系统中相对路径解析问题
-        File dockingDir = new File(System.getProperty("user.dir"), "docking");
+        // 获取项目根目录（platform 的父目录）
+        File currentDir = new File(System.getProperty("user.dir"));
+        File dockingDir;
+        
+        // 如果当前目录是 platform，则使用父目录的 docking
+        if (currentDir.getName().equals("platform")) {
+            dockingDir = new File(currentDir.getParentFile(), "docking");
+        } else {
+            dockingDir = new File(currentDir, "docking");
+        }
+        
         log.info("Docking目录路径: {}", dockingDir.getAbsolutePath());
         if (!dockingDir.exists()) {
             boolean created = dockingDir.mkdirs();
@@ -125,8 +147,8 @@ public class DockingService {
         ProcessBuilder pb = new ProcessBuilder(
                 vinaPath,
                 "--receptor", "1e9h.pdbqt",
-                "--ligand", compoundId + ".pdbqt",
-                "--out", compoundId + "_out.pdbqt",
+                "--ligand", englishName + ".pdbqt",
+                "--out", englishName + "_out.pdbqt",
                 // 1e9h蛋白质的活性位点坐标（准确值）
                 "--center_x", "11.114",
                 "--center_y", "27.215",
@@ -234,8 +256,7 @@ public class DockingService {
     /**
      * 根据化合物ID查询最新的对接结果
      */
-    public DockingResult getLatestDockingResult(String compoundId) {
-        List<DockingResult> results = dockingResultRepository.findByCompoundIdOrderByCreateTimeDesc(compoundId);
-        return results.isEmpty() ? null : results.get(0);
+    public DockingResult getLatestDockingResult(Long compoundId) {
+        return dockingResultRepository.findTopByCompoundIdOrderByAffinityAsc(compoundId).orElse(null);
     }
 }

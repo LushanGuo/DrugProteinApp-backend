@@ -20,26 +20,24 @@ public class DockingResult {
     @Column(name = "compound_id", nullable = false)
     private Long compoundId; // 化合物 ID
     
-    @Column(name = "protein_id")
-    private Long proteinId; // 蛋白 ID
-    
     @Column(name = "affinity")
     private Double affinity; // 结合亲和力 (kcal/mol)
+    
+    @Column(name = "status", length = 50)
+    private String status; // 对接状态 (completed, pending, failed)
     
     @Column(name = "docked_pdbqt_content", columnDefinition = "TEXT")
     private String dockedPdbqtContent; // 对接后的 PDBQT 内容
     
-    @Column(name = "rmsd_lb")
-    private Double rmsdLb; // RMSD lower bound
+    @Column(name = "similarity_score")
+    private Double similarityScore; // 相似度分数 (0.0-1.0)
     
-    @Column(name = "rmsd_ub")
-    private Double rmsdUb; // RMSD upper bound
-    
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
     
     @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }

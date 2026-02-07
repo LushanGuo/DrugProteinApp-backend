@@ -41,14 +41,16 @@ public class ScoringService {
         AdmetResult admetResult = admetResultRepository.findByCompoundId(compoundId)
                 .orElseThrow(() -> new RuntimeException("未找到ADMET结果"));
 
-        // 获取真实数据
-        double mockAffinity = dockingResult.getAffinity() != null ? dockingResult.getAffinity() : -7.0;
-        double mockSimilarity = 0.65; // 暂时使用默认值，后续可以从数据库读取
+        // 获取真实的 Vina 对接数据
+        double affinity = dockingResult.getAffinity() != null ? dockingResult.getAffinity() : -7.0;
+        double similarity = dockingResult.getSimilarityScore() != null ? dockingResult.getSimilarityScore() : 0.65;
 
-        // ADMET 数据
-        double mockHergProb = admetResult.getHergToxicity() != null ? admetResult.getHergToxicity() : 0.1;
-        boolean mockAmes = admetResult.getAmesToxicity() != null && admetResult.getAmesToxicity() == 1;
-        boolean mockLiver = admetResult.getLiverToxicity() != null && admetResult.getLiverToxicity() == 1;
+        // 获取真实的 ADMET 预测数据（五个维度）
+        double hergProb = admetResult.getHergToxicity() != null ? admetResult.getHergToxicity() : 0.1;
+        boolean amesPositive = admetResult.getAmesToxicity() != null && admetResult.getAmesToxicity() == 1;
+        boolean liverToxic = admetResult.getLiverToxicity() != null && admetResult.getLiverToxicity() == 1;
+        double absorption = admetResult.getAbsorption() != null ? admetResult.getAbsorption() : 0.7;
+        double metabolism = admetResult.getMetabolism() != null ? admetResult.getMetabolism() : 0.6;
 
         // 分子属性
         int hbd = compound.getHbd() != null ? compound.getHbd() : 3;
@@ -70,7 +72,7 @@ public class ScoringService {
         double safetyScore = 0.0;
 
         // A. hERG 心脏毒性 (15分 + 熔断机制)
-        if (mockHergProb > 0.7) {
+        if (hergProb > 0.7) {
             // --- 触发熔断 ---
             result.setVetoed(true);
             result.setTotalScore(0.0);
@@ -82,7 +84,7 @@ public class ScoringService {
             result.setAdviceTags(tags);
             result.setExpertAdvice(advice.toString());
             return result; // 直接返回
-        } else if (mockHergProb < 0.3) {
+        } else if (hergProb < 0.3) {
             safetyScore += 15.0;
             tags.add("心脏安全性佳");
         } else {
@@ -91,7 +93,7 @@ public class ScoringService {
         }
 
         // B. AMES 致突变性 (10分)
-        if (!mockAmes) {
+        if (!amesPositive) {
             safetyScore += 10.0;
         } else {
             tags.add("致突变风险");
@@ -99,7 +101,7 @@ public class ScoringService {
         }
 
         // C. 肝毒性 (10分)
-        if (!mockLiver) {
+        if (!liverToxic) {
             safetyScore += 10.0;
         } else {
             tags.add("肝毒性风险");
@@ -118,23 +120,23 @@ public class ScoringService {
         // A. 分子对接亲和力 (30分) - 线性插值
         // 范围: -10 (满分) 到 -6 (0分)
         double affScore = 0.0;
-        if (mockAffinity <= -10.0) {
+        if (affinity <= -10.0) {
             affScore = 30.0;
             tags.add("🌟 极强结合");
-        } else if (mockAffinity > -6.0) {
+        } else if (affinity > -6.0) {
             affScore = 0.0;
             tags.add("结合力弱");
         } else {
             // 线性插值公式: Score = 30 * (x - (-6)) / (-10 - (-6))
-            affScore = 30.0 * (mockAffinity - (-6.0)) / (-4.0);
+            affScore = 30.0 * (affinity - (-6.0)) / (-4.0);
         }
         potencyScore += affScore;
 
         // B. 结构相似性 (10分)
-        if (mockSimilarity >= 0.7) {
+        if (similarity >= 0.7) {
             potencyScore += 10.0;
             tags.add("骨架成熟"); // 类似 Palbociclib
-        } else if (mockSimilarity >= 0.5) {
+        } else if (similarity >= 0.5) {
             potencyScore += 5.0;
         } else {
             potencyScore += 2.0;
@@ -142,13 +144,13 @@ public class ScoringService {
         }
 
         // C. 配体效率 LE (5分)
-        double le = -mockAffinity / heavyAtoms;
+        double le = -affinity / heavyAtoms;
         if (le >= 0.3) {
             potencyScore += 5.0;
             tags.add("高配体效率");
         }
 
-        advice.append(String.format("🎯 效能得分：%.1f / 45.0 (Affinity: %.1f kcal/mol)\n", potencyScore, mockAffinity));
+        advice.append(String.format("🎯 效能得分：%.1f / 45.0 (Affinity: %.1f kcal/mol)\n", potencyScore, affinity));
         totalScore += potencyScore;
 
 
@@ -156,33 +158,57 @@ public class ScoringService {
         // 模块三：理化性质与成药性 (Drug-Likeness) —— 权重 20%
         // =====================================================
         double drugLikenessScore = 0.0;
+        
+        // 新增：ADMET 吸收和代谢评分（融入成药性评估）
+        // D. 吸收性 Absorption (5分)
+        if (absorption >= 0.7) {
+            drugLikenessScore += 5.0;
+            tags.add("吸收性优");
+        } else if (absorption >= 0.5) {
+            drugLikenessScore += 3.0;
+        } else {
+            drugLikenessScore += 1.0;
+            advice.append("⚠️ 成药性：吸收性较差，可能影响生物利用度。\n");
+        }
+        
+        // E. 代谢稳定性 Metabolism (5分)
+        if (metabolism >= 0.7) {
+            drugLikenessScore += 5.0;
+            tags.add("代谢稳定");
+        } else if (metabolism >= 0.5) {
+            drugLikenessScore += 3.0;
+        } else {
+            drugLikenessScore += 1.0;
+            advice.append("⚠️ 成药性：代谢不稳定，可能需要频繁给药。\n");
+        }
 
-        // A. LogP (10分)
+        // F. LogP (5分) - 调整权重以平衡新增的吸收和代谢评分
         double logP = compound.getLogP();
         if (logP >= 0 && logP <= 3) {
-            drugLikenessScore += 10.0;
+            drugLikenessScore += 5.0;
         } else if ((logP > 3 && logP <= 4) || (logP >= -1 && logP < 0)) {
-            drugLikenessScore += 6.0;
+            drugLikenessScore += 3.0;
         } else {
             tags.add("LogP不佳");
         }
 
-        // B. 分子量 MW (5分)
+        // G. 分子量 MW (3分)
         double mw = compound.getMolecularWeight();
         if (mw >= 300 && mw <= 500) {
-            drugLikenessScore += 5.0;
-        } else if ((mw >= 250 && mw < 300) || (mw > 500 && mw <= 550)) {
             drugLikenessScore += 3.0;
-        }
-
-        // C. 氢键 (5分)
-        if (hbd <= 5 && hba <= 10) {
-            drugLikenessScore += 5.0;
-        } else {
+        } else if ((mw >= 250 && mw < 300) || (mw > 500 && mw <= 550)) {
             drugLikenessScore += 2.0;
         }
 
-        advice.append(String.format("💊 成药性得分：%.1f / 20.0\n", drugLikenessScore));
+        // H. 氢键 (2分)
+        if (hbd <= 5 && hba <= 10) {
+            drugLikenessScore += 2.0;
+        } else {
+            drugLikenessScore += 1.0;
+        }
+
+        advice.append(String.format("💊 成药性得分：%.1f / 20.0 (含吸收: %.2f, 代谢: %.2f)\n", 
+                drugLikenessScore, absorption, metabolism));
         totalScore += drugLikenessScore;
 
         // --- 最终汇总 ---
